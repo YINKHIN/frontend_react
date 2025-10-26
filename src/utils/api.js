@@ -2,9 +2,12 @@ import axios from 'axios'
 import { toast } from 'react-hot-toast'
 import { config } from './config'
 
+// Use environment variable with fallback to config
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || config.base_api_url || "https://glistening-insight.up.railway.app/api/";
+
 // Create axios instance
 const api = axios.create({
-  baseURL: config.base_api_url,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
