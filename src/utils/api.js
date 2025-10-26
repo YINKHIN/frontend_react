@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast'
 import { config } from './config'
 
 // Use environment variable with fallback to config
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || config.base_api_url || "https://glistening-insight.up.railway.app/api/";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || config.base_api_url;
 
 // Create axios instance
 const api = axios.create({
@@ -13,6 +13,7 @@ const api = axios.create({
     'Accept': 'application/json',
   },
   withCredentials: false,
+  timeout: 30000, // 30 second timeout
 })
 
 // Request interceptor to add auth token
@@ -42,9 +43,13 @@ api.interceptors.response.use(
     return response
   },
   (error) => {
+    // Handle network errors
+    if (!error.response) {
+      toast.error('Network error. Please check your connection.')
+    }
     // Don't show toast for auth-related errors in interceptor
     // Let the calling component handle them
-    if (error.response?.status === 401 && !error.config.url?.includes('/auth/')) {
+    else if (error.response?.status === 401 && !error.config.url?.includes('/auth/')) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       window.location.href = '/login'
