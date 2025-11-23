@@ -13,7 +13,7 @@ export const parsePDF = async (file) => {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    
+
     let fullText = '';
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
@@ -21,7 +21,7 @@ export const parsePDF = async (file) => {
       const pageText = textContent.items.map(item => item.str).join(' ');
       fullText += pageText + '\n';
     }
-    
+
     return fullText;
   } catch (error) {
     console.error('Error parsing PDF:', error);
@@ -39,7 +39,7 @@ export const parsePDF = async (file) => {
 export const extractImportDataFromPDF = (text) => {
   // This is a placeholder implementation
   // In a real implementation, you would parse the actual PDF format
-  
+
   // Example of what you might extract:
   const importData = {
     imp_date: new Date().toISOString().split('T')[0], // Default to today
@@ -49,18 +49,18 @@ export const extractImportDataFromPDF = (text) => {
     total: 0,
     import_details: []
   };
-  
+
   // Simple regex-based extraction (this would need to be customized for your PDF format)
   const dateMatch = text.match(/Date[:\s]*(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})/i);
   if (dateMatch) {
     importData.imp_date = dateMatch[1];
   }
-  
+
   const supplierMatch = text.match(/Supplier[:\s]*([^\n\r]+)/i);
   if (supplierMatch) {
     importData.supplier = supplierMatch[1].trim();
   }
-  
+
   // Extract product lines (this is highly dependent on PDF format)
   const productLines = text.match(/Product[:\s]*.*?Qty[:\s]*\d+.*?Price[:\s]*[\d.]+/gi);
   if (productLines) {
@@ -79,9 +79,9 @@ export const extractImportDataFromPDF = (text) => {
       }
     });
   }
-  
+
   // Calculate total
   importData.total = importData.import_details.reduce((sum, detail) => sum + detail.amount, 0);
-  
+
   return importData;
 };

@@ -6,7 +6,7 @@ import LoadingSpinner from './LoadingSpinner'
 import { getImageUrl } from '../utils/helper'
 import { config } from '../utils/config'
 
-const UserModal = ({ user, mode, onClose }) => {
+const UserModal = ({ user, mode, onClose, onSuccess }) => {
   const isReadOnly = mode === 'view'
   const isEdit = mode === 'edit'
   
@@ -20,14 +20,26 @@ const UserModal = ({ user, mode, onClose }) => {
     reset,
     watch,
   } = useForm({
-    defaultValues: user || {}
+    defaultValues: user ? {
+      name: user.name || '',
+      email: user.email || '',
+      phone: user.phone || user.profile?.phone || '',
+      address: user.address || user.profile?.address || '',
+      type: user.type || user.user_type || '',
+    } : {}
   })
 
   const password = watch('password')
 
   useEffect(() => {
     if (user) {
-      reset(user)
+      reset({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || user.profile?.phone || '',
+        address: user.address || user.profile?.address || '',
+        type: user.type || user.user_type || '',
+      })
     }
   }, [user, reset])
 
@@ -76,10 +88,20 @@ const UserModal = ({ user, mode, onClose }) => {
         }
       }
       
+      let result
       if (isEdit) {
-        await updateUser.mutateAsync({ id: user.id, data: submitData })
+        result = await updateUser.mutateAsync({ id: user.id, data: submitData })
       } else {
-        await createUser.mutateAsync(submitData)
+        result = await createUser.mutateAsync(submitData)
+      }
+
+      // Normalize response shape to extract the user object
+      const changedUser = (result && (result.data?.data || result.data || result)) || null
+
+      // Notify parent to update table immediately (no spinner)
+      if (typeof onSuccess === 'function') {
+        const type = isEdit ? 'update' : 'create'
+        try { onSuccess({ type, user: changedUser }) } catch (_) {}
       }
       onClose()
     } catch (error) {

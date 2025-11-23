@@ -1,98 +1,354 @@
-import { useQuery, useMutation } from 'react-query'
+import { useState, useEffect, useRef } from 'react'
 import { toast } from 'react-hot-toast'
 import { reportService } from '../services/reportService'
 
-// Import Reports
+export const useReports = (type, params = {}) => {
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setIsLoading(true)
+        let response;
+        
+        switch (type) {
+          case 'sales':
+            response = await reportService.getSalesReport(params)
+            break
+          case 'inventory':
+            response = await reportService.getInventoryReport(params)
+            break
+          case 'customer':
+            response = await reportService.getCustomerReport(params)
+            break
+          default:
+            throw new Error(`Unsupported report type: ${type}`)
+        }
+        
+        setData(response)
+        setError(null)
+      } catch (err) {
+        setError(err)
+        console.error('Reports fetch failed:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (type) {
+      fetchReports()
+    }
+  }, [type, JSON.stringify(params)])
+
+  const refetch = () => {
+    // Simple refetch implementation
+    const fetchReports = async () => {
+      try {
+        setIsLoading(true)
+        let response;
+        
+        switch (type) {
+          case 'sales':
+            response = await reportService.getSalesReport(params)
+            break
+          case 'inventory':
+            response = await reportService.getInventoryReport(params)
+            break
+          case 'customer':
+            response = await reportService.getCustomerReport(params)
+            break
+          default:
+            throw new Error(`Unsupported report type: ${type}`)
+        }
+        
+        setData(response)
+        setError(null)
+      } catch (err) {
+        setError(err)
+        console.error('Reports refetch failed:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (type) {
+      fetchReports()
+    }
+  }
+
+  return { data, isLoading, error, refetch }
+}
+
 export const useImportReport = (params = {}) => {
-  return useQuery(['importReport', params], () => reportService.getImportReport(params), {
-    keepPreviousData: true,
-    enabled: Object.keys(params).length > 0, // Only fetch when params are provided
-  })
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(false) // Start with false for instant load
+  const [error, setError] = useState(null)
+
+  const fetchImportReport = async () => {
+    try {
+      setIsLoading(true)
+      
+      const response = await reportService.getImportReport(params)
+      
+      setData(response)
+      setError(null)
+    } catch (err) {
+      setError(err)
+      console.error('Import report fetch failed:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchImportReport()
+  }, [JSON.stringify(params)])
+
+  const refetch = () => {
+    fetchImportReport()
+  }
+
+  return { data, isLoading, error, refetch }
+}
+
+export const useSalesReport = (params = {}) => {
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(false) // Start with false for instant load
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const fetchSalesReport = async () => {
+      try {
+        setIsLoading(true)
+        
+        const response = await reportService.getSalesReport(params)
+        setData(response)
+        setError(null)
+      } catch (err) {
+        setError(err)
+        console.error('Sales report fetch failed:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchSalesReport()
+  }, [JSON.stringify(params)])
+
+  const refetch = () => {
+    const fetchSalesReport = async () => {
+      try {
+        setIsLoading(true)
+        const response = await reportService.getSalesReport(params)
+        setData(response)
+        setError(null)
+      } catch (err) {
+        setError(err)
+        console.error('Sales report refetch failed:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchSalesReport()
+  }
+
+  return { data, isLoading, error, refetch }
 }
 
 export const useImportSummary = (params = {}) => {
-  return useQuery(['importSummary', params], () => reportService.getImportSummary(params), {
-    keepPreviousData: true,
-  })
-}
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-// Sales Reports
-export const useSalesReport = (params = {}) => {
-  return useQuery(['salesReport', params], () => reportService.getSalesReport(params), {
-    keepPreviousData: true,
-    enabled: Object.keys(params).length > 0, // Only fetch when params are provided
-  })
+  useEffect(() => {
+    const fetchImportSummary = async () => {
+      try {
+        setIsLoading(true)
+        console.log('Fetching import summary with params:', params);
+        const response = await reportService.getImportSummary(params)
+        console.log('Import summary response:', response);
+        // request.js transforms { success: true, data: {...} } to { data: {...} }
+        // So response.data contains the actual summary data
+        setData(response?.data || response)
+        setError(null)
+      } catch (err) {
+        setError(err)
+        console.error('Import summary fetch failed:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchImportSummary()
+  }, [JSON.stringify(params)])
+
+  return { data, isLoading, error }
 }
 
 export const useSalesSummary = (params = {}) => {
-  return useQuery(['salesSummary', params], () => reportService.getSalesSummary(params), {
-    keepPreviousData: true,
-  })
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const fetchSalesSummary = async () => {
+      try {
+        setIsLoading(true)
+        console.log('Fetching sales summary with params:', params);
+        const response = await reportService.getSalesSummary(params)
+        console.log('Sales summary response:', response);
+        // request.js transforms { success: true, data: {...} } to { data: {...} }
+        // So response.data contains the actual summary data
+        setData(response?.data || response)
+        setError(null)
+      } catch (err) {
+        setError(err)
+        console.error('Sales summary fetch failed:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchSalesSummary()
+  }, [JSON.stringify(params)])
+
+  return { data, isLoading, error }
 }
 
-// Scheduled Reports
 export const useBestSellingProducts = (params = {}) => {
-  return useQuery(['bestSellingProducts', params], () => reportService.getBestSellingProducts(params), {
-    keepPreviousData: true,
-  })
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const fetchingRef = useRef(false) // ✅ Prevent multiple simultaneous calls
+  const paramsRef = useRef(null) // ✅ Track previous params to prevent unnecessary refetches
+
+  // Stringify params once and compare
+  const paramsString = JSON.stringify(params)
+
+  useEffect(() => {
+    // ✅ Skip if already fetching
+    if (fetchingRef.current) {
+      console.log('useBestSellingProducts: Already fetching, skipping...')
+      return
+    }
+
+    // ✅ Skip if params haven't changed (compare with previous)
+    if (paramsRef.current === paramsString) {
+      return
+    }
+
+    const fetchBestSellingProducts = async () => {
+      try {
+        fetchingRef.current = true
+        setIsLoading(true)
+        const response = await reportService.getBestSellingProducts(params)
+        setData(response)
+        setError(null)
+        paramsRef.current = paramsString // ✅ Store current params
+      } catch (err) {
+        setError(err)
+        console.error('Best selling products fetch failed:', err)
+      } finally {
+        setIsLoading(false)
+        fetchingRef.current = false
+      }
+    }
+
+    fetchBestSellingProducts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paramsString]) // ✅ Only depend on paramsString (params is captured in closure)
+
+  return { data, isLoading, error }
 }
 
 export const useLowStockProducts = (params = {}) => {
-  return useQuery(['lowStockProducts', params], () => reportService.getLowStockProducts(params), {
-    keepPreviousData: true,
-  })
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const fetchLowStockProducts = async () => {
+      try {
+        setIsLoading(true)
+        const response = await reportService.getLowStockProducts(params)
+        setData(response)
+        setError(null)
+      } catch (err) {
+        setError(err)
+        console.error('Low stock products fetch failed:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchLowStockProducts()
+  }, [JSON.stringify(params)])
+
+  return { data, isLoading, error }
 }
 
 export const useInventorySummary = (params = {}) => {
-  return useQuery(['inventorySummary', params], () => reportService.getInventorySummary(params), {
-    keepPreviousData: true,
-  })
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const fetchInventorySummary = async () => {
+      try {
+        setIsLoading(true)
+        console.log('Fetching inventory summary with params:', params);
+        const response = await reportService.getInventorySummary(params)
+        console.log('Inventory summary response:', response);
+        // request.js transforms { success: true, data: {...} } to { data: {...} }
+        // So response.data contains the actual summary data
+        setData(response?.data || response)
+        setError(null)
+      } catch (err) {
+        setError(err)
+        console.error('Inventory summary fetch failed:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchInventorySummary()
+  }, [JSON.stringify(params)])
+
+  return { data, isLoading, error }
 }
 
-// Export Hooks
-export const useExportReport = () => {
-  return useMutation(
-    async ({ type, format, params, filename }) => {
-      let url
-      
-      switch (`${type}_${format}`) {
-        case 'import_excel':
-          url = reportService.exportImportExcel(params)
-          break
-        case 'import_xlsx':
-          url = reportService.exportImportExcelXlsx(params)
-          break
-        case 'import_pdf':
-          url = reportService.exportImportPdf(params)
-          break
-        case 'sales_excel':
-          url = reportService.exportSalesExcel(params)
-          break
-        case 'sales_xlsx':
-          url = reportService.exportSalesExcelXlsx(params)
-          break
-        case 'sales_pdf':
-          url = reportService.exportSalesPdf(params)
-          break
-        case 'import_word':
-          url = reportService.exportSingleImportWord(params)
-          break
-        case 'sales_word':
-          url = reportService.exportSingleSalesWord(params)
-          break
-        default:
-          throw new Error('Invalid export type or format')
-      }
-      
-      await reportService.downloadFile(url, filename)
-    },
-    {
-      onSuccess: () => {
-        toast.success('Report exported successfully!')
-      },
-      onError: (error) => {
-        toast.error(error.message || 'Export failed')
-      },
+export const exportReport = async (options) => {
+  console.log('Export report:', options)
+  
+  try {
+    const { exportService } = await import('../services/exportService')
+    const { type, format, filename, fallbackData } = options
+    
+    let result
+    if (format === 'xlsx' || format === 'excel') {
+      result = exportService.exportToExcel(fallbackData, filename, type)
+    } else if (format === 'pdf') {
+      result = exportService.exportToPDF(fallbackData, filename, type)
+    } else {
+      throw new Error(`Unsupported format: ${format}`)
     }
-  )
+    
+    if (result.success) {
+      // Show success message using toast
+      const { toast } = await import('react-hot-toast')
+      toast.success(result.message)
+    } else {
+      throw new Error(result.message)
+    }
+    
+    return result
+  } catch (error) {
+    console.error('Export failed:', error)
+    const { toast } = await import('react-hot-toast')
+    toast.error('Export failed: ' + error.message)
+    throw error
+  }
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, Edit, Trash2, Users, Eye } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCustomers, useDeleteCustomer } from '../hooks/useCustomers'
@@ -13,11 +13,19 @@ const CustomersPage = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState('create')
 
-  const { data: customersResponse, isLoading, error } = useCustomers()
+  const { data: customersResponse, isLoading, error, refetch } = useCustomers()
   const deleteCustomer = useDeleteCustomer()
 
-  // Handle different API response formats
-  const customers = customersResponse?.data?.data || customersResponse?.data || customersResponse || []
+  // Local list for optimistic UI
+  const [list, setList] = useState([])
+  
+  useEffect(() => {
+    // Handle different API response formats
+    const customers = customersResponse?.data?.data || customersResponse?.data || customersResponse || []
+    if (Array.isArray(customers) && customers.length >= 0) {
+      setList(customers)
+    }
+  }, [customersResponse])
 
   const handleCreate = () => {
     setSelectedCustomer(null)
@@ -40,21 +48,24 @@ const CustomersPage = () => {
   const handleDelete = async (customer) => {
     if (window.confirm(`Are you sure you want to delete "${customer.cus_name}"?`)) {
       try {
+        setList(prev => prev.filter(c => c.id !== customer.id))
         await deleteCustomer.mutateAsync(customer.id)
+        refetch()
       } catch (error) {
         console.error('Delete failed:', error)
+        refetch()
       }
     }
   }
 
-  if (isLoading) return <LoadingSpinner className="h-64" />
+  if (isLoading && !customersResponse) return <LoadingSpinner className="h-64" />
   if (error) return <div className="text-red-600">Error loading customers</div>
 
   const canCreate = hasPermission(['create'])
   const canUpdate = hasPermission(['update'])
   const canDelete = hasPermission(['delete'])
 
-  const filteredCustomers = Array.isArray(customers) ? customers.filter(customer =>
+  const filteredCustomers = Array.isArray(list) ? list.filter(customer =>
     customer.cus_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.cus_contact?.toLowerCase().includes(searchTerm.toLowerCase())
   ) : []
@@ -166,6 +177,16 @@ const CustomersPage = () => {
           customer={selectedCustomer}
           mode={modalMode}
           onClose={() => setModalOpen(false)}
+          onSuccess={({ type, customer: changedCustomer }) => {
+            if (changedCustomer) {
+              setList(prev => {
+                if (type === 'create') return [changedCustomer, ...prev]
+                if (type === 'update') return prev.map(c => c.id === changedCustomer.id ? { ...c, ...changedCustomer } : c)
+                return prev
+              })
+            }
+            refetch()
+          }}
         />
       )}
     </div>

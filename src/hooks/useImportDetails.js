@@ -1,85 +1,119 @@
-import { useQuery, useMutation, useQueryClient } from 'react-query'
+import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 import { importDetailService } from '../services/importDetailService'
 
 export const useImportDetails = (importId) => {
-  return useQuery(
-    ['importDetails', importId], 
-    () => importDetailService.getByImportId(importId),
-    {
-      enabled: !!importId,
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const refetch = useCallback(async () => {
+    if (!importId) return
+    try {
+      setIsLoading(true)
+      const result = await importDetailService.getByImportId(importId)
+      setData(result)
+      setError(null)
+    } catch (err) {
+      setError(err)
+    } finally {
+      setIsLoading(false)
     }
-  )
+  }, [importId])
+
+  useEffect(() => {
+    if (importId) {
+      refetch()
+    }
+  }, [importId, refetch])
+
+  return { data, isLoading, error, refetch }
+}
+
+export const useImportDetail = (id) => {
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const refetch = useCallback(async () => {
+    if (!id) return
+    try {
+      setIsLoading(true)
+      const result = await importDetailService.getById(id)
+      setData(result)
+      setError(null)
+    } catch (err) {
+      setError(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [id])
+
+  useEffect(() => {
+    if (id) {
+      refetch()
+    }
+  }, [id, refetch])
+
+  return { data, isLoading, error, refetch }
 }
 
 export const useCreateImportDetail = () => {
-  const queryClient = useQueryClient()
-  
-  return useMutation(
-    ({ importId, data }) => importDetailService.create(importId, data),
-    {
-      onSuccess: (data, variables) => {
-        queryClient.invalidateQueries(['importDetails', variables.importId])
-        queryClient.invalidateQueries('imports')
-        toast.success('Import detail added successfully')
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to add import detail')
-      },
+  const [isLoading, setIsLoading] = useState(false)
+
+  const mutate = async (importDetailData) => {
+    try {
+      setIsLoading(true)
+      const result = await importDetailService.create(importDetailData)
+      toast.success('Import detail created successfully')
+      return result
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to create import detail')
+      throw error
+    } finally {
+      setIsLoading(false)
     }
-  )
+  }
+
+  return { mutate, mutateAsync: mutate, isLoading }
 }
 
 export const useUpdateImportDetail = () => {
-  const queryClient = useQueryClient()
-  
-  return useMutation(
-    ({ importId, productId, data }) => importDetailService.update(importId, productId, data),
-    {
-      onSuccess: (data, variables) => {
-        queryClient.invalidateQueries(['importDetails', variables.importId])
-        queryClient.invalidateQueries('imports')
-        toast.success('Import detail updated successfully')
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to update import detail')
-      },
+  const [isLoading, setIsLoading] = useState(false)
+
+  const mutate = async ({ id, data }) => {
+    try {
+      setIsLoading(true)
+      const result = await importDetailService.update(id, data)
+      toast.success('Import detail updated successfully')
+      return result
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update import detail')
+      throw error
+    } finally {
+      setIsLoading(false)
     }
-  )
+  }
+
+  return { mutate, mutateAsync: mutate, isLoading }
 }
 
 export const useDeleteImportDetail = () => {
-  const queryClient = useQueryClient()
-  
-  return useMutation(
-    ({ importId, productId }) => importDetailService.delete(importId, productId),
-    {
-      onSuccess: (data, variables) => {
-        queryClient.invalidateQueries(['importDetails', variables.importId])
-        queryClient.invalidateQueries('imports')
-        toast.success('Import detail removed successfully')
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to remove import detail')
-      },
-    }
-  )
-}
+  const [isLoading, setIsLoading] = useState(false)
 
-export const useBulkCreateImportDetails = () => {
-  const queryClient = useQueryClient()
-  
-  return useMutation(
-    ({ importId, details }) => importDetailService.bulkCreate(importId, details),
-    {
-      onSuccess: (data, variables) => {
-        queryClient.invalidateQueries(['importDetails', variables.importId])
-        queryClient.invalidateQueries('imports')
-        toast.success('Import details saved successfully')
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to save import details')
-      },
+  const mutate = async (id) => {
+    try {
+      setIsLoading(true)
+      const result = await importDetailService.delete(id)
+      toast.success('Import detail deleted successfully')
+      return result
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete import detail')
+      throw error
+    } finally {
+      setIsLoading(false)
     }
-  )
+  }
+
+  return { mutate, mutateAsync: mutate, isLoading }
 }

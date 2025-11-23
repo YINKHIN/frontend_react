@@ -65,32 +65,43 @@ const OrderModal = ({ order, mode, onClose, onSave }) => {
       const formattedDate = order.ord_date ? 
         new Date(order.ord_date).toISOString().split('T')[0] : '';
       
+      // Load existing order details for edit/view mode FIRST
+      // Handle both naming conventions: order_details (snake_case) and orderDetails (camelCase)
+      const orderDetailsData = order.order_details || order.orderDetails || [];
+      
+      let loadedDetails = [];
+      if (orderDetailsData && orderDetailsData.length > 0) {
+        loadedDetails = orderDetailsData.map(detail => ({
+          pro_code: parseInt(detail.pro_code || detail.product_id || detail.prod_id || 0),
+          pro_name: detail.pro_name || detail.product_name || detail.prod_name || 'Unknown Product',
+          qty: parseInt(detail.qty || detail.quantity || 0),
+          price: parseFloat(detail.price || detail.unit_price || 0),
+          amount: parseFloat(detail.amount || (detail.qty || detail.quantity) * (detail.price || detail.unit_price) || 0)
+        }));
+      }
+      
+      // Calculate subtotal from loaded details (will be recalculated in useEffect)
+      const calculatedSubtotal = loadedDetails.length > 0
+        ? loadedDetails.reduce((sum, detail) => sum + parseFloat(detail.amount || 0), 0)
+        : 0;
+      
       const resetData = {
         ord_date: formattedDate,
         staff_id: order.staff_id || '',
         cus_id: order.cus_id || '',
         cus_name: order.cus_name || '',
-        total: order.total || '',
-        subtotal: order.subtotal || '',
-        tax: order.tax || '',
+        total: order.total || '0.00',
+        subtotal: calculatedSubtotal > 0 ? calculatedSubtotal.toFixed(2) : (order.subtotal || '0.00'),
+        tax: order.tax || '0.00',
         tax_percent: order.tax_percent || '0',
-        discount: order.discount || '',
+        discount: order.discount || '0.00',
         discount_percent: order.discount_percent || '0'
       };
       
       reset(resetData);
       
-      // Load existing order details for edit/view mode
-      if (order.orderDetails && order.orderDetails.length > 0) {
-        const loadedDetails = order.orderDetails.map(detail => ({
-          pro_code: parseInt(detail.pro_code),
-          pro_name: detail.pro_name,
-          qty: parseInt(detail.qty),
-          price: parseFloat(detail.price),
-          amount: parseFloat(detail.amount)
-        }));
-        setOrderDetails(loadedDetails);
-      }
+      // Set order details after reset (this will trigger the calculation useEffect)
+      setOrderDetails(loadedDetails);
     } else {
       // Reset form for new order
       reset({
@@ -111,22 +122,24 @@ const OrderModal = ({ order, mode, onClose, onSave }) => {
 
   // Calculate totals from order details
   useEffect(() => {
-    if (orderDetails.length > 0) {
-      const subtotal = orderDetails.reduce((sum, detail) => sum + parseFloat(detail.amount || 0), 0);
-      setValue('subtotal', subtotal.toFixed(2));
-      
-      // Get current form values for tax and discount percentages
-      const taxPercentValue = parseFloat(watch('tax_percent')) || 0;
-      const taxAmount = subtotal * (taxPercentValue / 100);
-      setValue('tax', taxAmount.toFixed(2));
-      
-      const discountPercentValue = parseFloat(watch('discount_percent')) || 0;
-      const discountAmount = subtotal * (discountPercentValue / 100);
-      setValue('discount', discountAmount.toFixed(2));
-      
-      const total = subtotal + taxAmount - discountAmount;
-      setValue('total', total.toFixed(2));
-    }
+    // Always calculate subtotal from order details (even if empty)
+    const subtotal = orderDetails.length > 0
+      ? orderDetails.reduce((sum, detail) => sum + parseFloat(detail.amount || 0), 0)
+      : 0;
+    
+    setValue('subtotal', subtotal.toFixed(2));
+    
+    // Get current form values for tax and discount percentages
+    const taxPercentValue = parseFloat(watch('tax_percent')) || 0;
+    const taxAmount = subtotal * (taxPercentValue / 100);
+    setValue('tax', taxAmount.toFixed(2));
+    
+    const discountPercentValue = parseFloat(watch('discount_percent')) || 0;
+    const discountAmount = subtotal * (discountPercentValue / 100);
+    setValue('discount', discountAmount.toFixed(2));
+    
+    const total = subtotal + taxAmount - discountAmount;
+    setValue('total', total.toFixed(2));
   }, [orderDetails, setValue, watch]);
 
   // Auto-fill customer name when customer is selected
@@ -198,12 +211,28 @@ const OrderModal = ({ order, mode, onClose, onSave }) => {
         return;
       }
 
+      // Ensure customer name is provided - either from selected customer or manually entered
+      let customerName = data.cus_name?.trim() || '';
+      
+      // If customer is selected, use the customer's name
+      if (data.cus_id) {
+        const selectedCustomer = customers.find(c => c.id === parseInt(data.cus_id));
+        if (selectedCustomer && selectedCustomer.cus_name) {
+          customerName = selectedCustomer.cus_name;
+        }
+      }
+      
+      // If no customer name is available, use a default value
+      if (!customerName) {
+        customerName = 'Walk-in Customer';
+      }
+
       // Ensure all required data is present
       const submitData = {
         ord_date: data.ord_date,
         staff_id: parseInt(data.staff_id),
         cus_id: data.cus_id ? parseInt(data.cus_id) : null,
-        cus_name: data.cus_name || '',
+        cus_name: customerName,
         total: parseFloat(data.total) || 0,
         subtotal: parseFloat(data.subtotal) || 0,
         tax: parseFloat(data.tax) || 0,
@@ -224,14 +253,7 @@ const OrderModal = ({ order, mode, onClose, onSave }) => {
         return;
       }
 
-      if (isEdit) {
-        await updateOrder.mutateAsync({ id: order.id, data: submitData });
-        toast.success('Order updated successfully');
-      } else {
-        await createOrder.mutateAsync(submitData);
-        toast.success('Order created successfully');
-      }
-
+      // Let the parent component handle the API call
       onSave(submitData);
     } catch (error) {
       console.error('Submit failed:', error);
@@ -248,12 +270,28 @@ const OrderModal = ({ order, mode, onClose, onSave }) => {
         return;
       }
 
+      // Ensure customer name is provided - either from selected customer or manually entered
+      let customerName = data.cus_name?.trim() || '';
+      
+      // If customer is selected, use the customer's name
+      if (data.cus_id) {
+        const selectedCustomer = customers.find(c => c.id === parseInt(data.cus_id));
+        if (selectedCustomer && selectedCustomer.cus_name) {
+          customerName = selectedCustomer.cus_name;
+        }
+      }
+      
+      // If no customer name is available, use a default value
+      if (!customerName) {
+        customerName = 'Walk-in Customer';
+      }
+
       // Ensure all required data is present
       const submitData = {
         ord_date: data.ord_date,
         staff_id: parseInt(data.staff_id),
         cus_id: data.cus_id ? parseInt(data.cus_id) : null,
-        cus_name: data.cus_name || '',
+        cus_name: customerName,
         total: parseFloat(data.total) || 0,
         subtotal: parseFloat(data.subtotal) || 0,
         tax: parseFloat(data.tax) || 0,
@@ -274,13 +312,8 @@ const OrderModal = ({ order, mode, onClose, onSave }) => {
         return;
       }
 
-      if (isEdit) {
-        await updateOrder.mutateAsync({ id: order.id, data: submitData });
-        toast.success('Order updated successfully');
-      } else {
-        await createOrder.mutateAsync(submitData);
-        toast.success('Order created successfully');
-      }
+      // Let the parent component handle the API call
+      onSave(submitData);
 
       // Reset the form for a new order, but keep the modal open
       reset({
@@ -297,11 +330,6 @@ const OrderModal = ({ order, mode, onClose, onSave }) => {
       });
       setOrderDetails([]);
       setShowProductForm(false);
-      
-      // Refresh the orders list
-      if (onSave) {
-        onSave(submitData);
-      }
     } catch (error) {
       console.error('Submit failed:', error);
       toast.error(error.response?.data?.message || 'Failed to save order');
@@ -322,8 +350,8 @@ const OrderModal = ({ order, mode, onClose, onSave }) => {
         const selectedProduct = products.find(p => p.id === parseInt(selectedProductId));
         if (selectedProduct) {
           // Auto-fill price from product price
-          if (selectedProduct.upis) {
-            productSetValue('price', selectedProduct.upis);
+          if (selectedProduct.sup) {
+            productSetValue('price', selectedProduct.sup);
           }
         }
       }
@@ -446,10 +474,7 @@ const OrderModal = ({ order, mode, onClose, onSave }) => {
             </button>
             <button
               type="button"
-              onClick={() => {
-                const data = productWatch();
-                onSubmit(data);
-              }}
+              onClick={productHandleSubmit(onSubmit)}
               className="px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
             >
               Add Product
@@ -632,7 +657,7 @@ const OrderModal = ({ order, mode, onClose, onSave }) => {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Subtotal</label>
                 <div className="mt-1 text-lg font-medium text-gray-900">
-                  ${subtotalValue}
+                  {formatCurrency(subtotalValue)}
                 </div>
               </div>
               <div>
@@ -648,7 +673,7 @@ const OrderModal = ({ order, mode, onClose, onSave }) => {
                   />
                 </label>
                 <div className="mt-1 text-lg font-medium text-gray-900">
-                  ${taxValue}
+                  {formatCurrency(taxValue)}
                 </div>
               </div>
               <div>
@@ -664,19 +689,19 @@ const OrderModal = ({ order, mode, onClose, onSave }) => {
                   />
                 </label>
                 <div className="mt-1 text-lg font-medium text-gray-900">
-                  ${discountValue}
+                  {formatCurrency(discountValue)}
                 </div>
               </div>
               <div className="md:col-span-2 lg:col-span-1">
                 <label className="block text-sm font-medium text-gray-700">Total</label>
                 <div className="mt-1 text-xl font-bold text-blue-600">
-                  ${totalValue}
+                  {formatCurrency(totalValue)}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Form Actions */}
+          {/* Form Actions - Restore "Save and Add Another" button for create mode */}
           {!isReadOnly && (
             <div className="flex justify-end space-x-3">
               <button
@@ -696,7 +721,8 @@ const OrderModal = ({ order, mode, onClose, onSave }) => {
                 </button>
               )}
               <button
-                type="submit"
+                type="button"
+                onClick={handleSubmit(onSubmit)}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
               >
                 {mode === 'edit' ? 'Update Order' : 'Create Order'}

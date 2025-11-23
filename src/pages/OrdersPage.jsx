@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { ShoppingCart, Plus, Search, Eye, Edit, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useOrders, useDeleteOrder, useCreateOrder, useUpdateOrder } from '../hooks/useOrders'
+import { orderService } from '../services/orderService'
+import { toast } from 'react-hot-toast'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { formatCurrency, formatDate } from '../utils/helper'
 import OrderModal from '../components/OrderModal'
@@ -19,7 +21,21 @@ const OrdersPage = () => {
   const updateOrder = useUpdateOrder()
 
   // Handle different API response formats
-  const orders = ordersResponse?.data?.data || ordersResponse?.data || ordersResponse || []
+  // Use memoized value to prevent unnecessary re-renders
+  const ordersRaw = useMemo(() => {
+    return ordersResponse?.data?.data || ordersResponse?.data || ordersResponse || []
+  }, [ordersResponse])
+  
+  // Deduplicate by id to avoid duplicate rows in table (e.g., due to double fetches)
+  const orders = useMemo(() => {
+    return Array.isArray(ordersRaw)
+      ? Object.values(ordersRaw.reduce((acc, o) => {
+          if (!o || !o.id) return acc
+          acc[o.id] = acc[o.id] ? { ...acc[o.id], ...o } : o
+          return acc
+        }, {}))
+      : []
+  }, [ordersRaw])
   
   const canCreateOrder = hasPermission(['create_order', 'create'])
   const canUpdateOrder = hasPermission(['update_order', 'update'])
@@ -31,16 +47,38 @@ const OrdersPage = () => {
     setModalOpen(true)
   }
 
-  const handleViewOrder = (order) => {
-    setSelectedOrder(order)
-    setModalMode('view')
-    setModalOpen(true)
+  const handleViewOrder = async (order) => {
+    try {
+      // Fetch full order with details for viewing
+      const response = await orderService.getById(order.id)
+      const fullOrder = response?.data?.data || response?.data || response
+      setSelectedOrder(fullOrder || order)
+      setModalMode('view')
+      setModalOpen(true)
+    } catch (error) {
+      console.error('Failed to fetch order details:', error)
+      // Fallback to using the order from list if fetch fails
+      setSelectedOrder(order)
+      setModalMode('view')
+      setModalOpen(true)
+    }
   }
 
-  const handleEditOrder = (order) => {
-    setSelectedOrder(order)
-    setModalMode('edit')
-    setModalOpen(true)
+  const handleEditOrder = async (order) => {
+    try {
+      // Fetch full order with details for editing
+      const response = await orderService.getById(order.id)
+      const fullOrder = response?.data?.data || response?.data || response
+      setSelectedOrder(fullOrder || order)
+      setModalMode('edit')
+      setModalOpen(true)
+    } catch (error) {
+      console.error('Failed to fetch order details:', error)
+      // Fallback to using the order from list if fetch fails
+      setSelectedOrder(order)
+      setModalMode('edit')
+      setModalOpen(true)
+    }
   }
 
   const handleDeleteOrder = async (order) => {
@@ -58,21 +96,34 @@ const OrdersPage = () => {
     try {
       if (modalMode === 'edit') {
         await updateOrder.mutateAsync({ id: selectedOrder.id, data: orderData })
+        toast.success('Order updated successfully');
+        // Refetch orders after update to show latest data
+        await refetch();
       } else {
         await createOrder.mutateAsync(orderData)
+        toast.success('Order created successfully');
+        // Refetch orders after create to show latest data
+        await refetch();
       }
-      await refetch()
+      // Close modal after successful save
       setModalOpen(false)
+      setSelectedOrder(null)
     } catch (error) {
       console.error('Save failed:', error)
+      toast.error(error.response?.data?.message || 'Failed to save order');
+      // Keep modal open on error so user can retry
     }
   }
 
   const filteredOrders = Array.isArray(orders) ? orders.filter(order => {
+    if (!searchTerm) return true
     const searchLower = searchTerm.toLowerCase()
-    return order.full_name?.toLowerCase().includes(searchLower) ||
-           order.cus_name?.toLowerCase().includes(searchLower) ||
-           order.id.toString().includes(searchLower)
+    const staffName = (order.staff?.full_name || order.full_name || '').toLowerCase()
+    const customerName = (order.cus_name || '').toLowerCase()
+    const orderId = order.id?.toString() || ''
+    return staffName.includes(searchLower) ||
+           customerName.includes(searchLower) ||
+           orderId.includes(searchLower)
   }) : []
 
   if (isLoading) return <LoadingSpinner className="h-64" />
@@ -134,16 +185,22 @@ const OrdersPage = () => {
               {filteredOrders.length > 0 ? (
                 filteredOrders.map((order) => {
                   // Calculate total paid for this order
-                  const totalPaid = order.payments?.reduce((sum, payment) => sum + parseFloat(payment.deposit || 0), 0) || 0;
-                  const remaining = parseFloat(order.total || 0) - totalPaid;
-                  const isPaid = remaining <= 0.01;
+                  // Handle both camelCase and snake_case for payments
+                  const payments = order.payments || order.payment || []
+                  const totalPaid = Array.isArray(payments)
+                    ? payments.reduce((sum, payment) => sum + parseFloat(payment.deposit || payment.total || payment.amount || 0), 0)
+                    : 0
+                  const remaining = parseFloat(order.total || 0) - totalPaid
+                  const isPaid = remaining <= 0.01
                   
                   return (
                     <tr key={order.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{order.id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(order.ord_date)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.cus_name || 'N/A'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.staff?.full_name || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {order.staff?.full_name || order.full_name || 'N/A'}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {/* Handle both camelCase and snake_case naming conventions */}
                         {(order.orderDetails?.length || order.order_details?.length || 0)} items
@@ -202,7 +259,7 @@ const OrdersPage = () => {
         </div>
       </div>
 
-      {/* Order Modal */}
+      {/* Order Modal - Show for all modes including create */}
       {modalOpen && (
         <OrderModal
           order={selectedOrder}

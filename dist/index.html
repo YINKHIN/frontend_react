@@ -5,8 +5,31 @@
     <link rel="icon" type="image/svg+xml" href="/assets/logo-50613ae1.jpg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Inventory Management System</title>
-    <script type="module" crossorigin src="/assets/index-17973135.js"></script>
-    <link rel="stylesheet" href="/assets/index-5cfe77a5.css">
+    <!-- SPA Routing Handler for both GitHub Pages and Vercel -->
+    <script type="text/javascript">
+      // Handle routing for both GitHub Pages (query string) and Vercel (hash) deployments
+      (function(l) {
+        // Handle GitHub Pages style routing (?p=/path)
+        if (l.search[1] === '/' ) {
+          var decoded = l.search.slice(1).split('&').map(function(s) { 
+            return s.replace(/~and~/g, '&')
+          }).join('?');
+          window.history.replaceState(null, null,
+              l.pathname.slice(0, -1) + decoded + l.hash
+          );
+        }
+        // Handle Vercel style routing (hash-based)
+        else if (l.hash && l.hash.startsWith('#/')) {
+          var hashPath = l.hash.substring(1); // Remove the #
+          // Convert hash path to actual path
+          window.history.replaceState(null, null, hashPath + l.search);
+        }
+      }(window.location))
+    </script>
+    <script type="module" crossorigin src="/assets/index-bd15ace2.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-9aea8973.js">
+    <link rel="modulepreload" crossorigin href="/assets/ui-c6cea856.js">
+    <link rel="stylesheet" href="/assets/index-ea9d60f7.css">
   </head>
   <body>
     <div id="root"></div>

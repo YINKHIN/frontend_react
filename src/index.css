@@ -1,179 +1,178 @@
+@import url("https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=Merienda:wght@300..900&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================
+   Base Styles
+========================== */
 @layer base {
-    * {
-        @apply border-gray-200;
-    }
+  * {
+    @apply border-gray-200;
+  }
 
-    body {
-        @apply bg-gray-50 text-gray-900;
-    }
-}
+  body {
+    @apply bg-gray-50 text-gray-900;
+    font-family: "Kantumruy Pro", sans-serif;
+    font-weight: 560;
+  }
 
-@layer components {
-    .btn {
-        @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
-    }
+  html {
+    font-size: 14px;
+  }
 
-    .btn-primary {
-        @apply btn bg-primary-600 text-white hover:bg-primary-700 px-4 py-2;
-    }
-
-    .btn-secondary {
-        @apply btn bg-secondary-200 text-secondary-900 hover:bg-secondary-300 px-4 py-2;
-    }
-
-    .btn-danger {
-        @apply btn bg-red-600 text-white hover:bg-red-700 px-4 py-2;
-    }
-
-    .btn-success {
-        @apply btn bg-green-600 text-white hover:bg-green-700 px-4 py-2;
-    }
-
-    .input {
-        @apply flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
-    }
-
-    .card {
-        @apply rounded-lg border border-gray-200 bg-white shadow-sm;
-    }
-
-    .card-header {
-        @apply flex flex-col space-y-1.5 p-6;
-    }
-
-    .card-content {
-        @apply p-6 pt-0;
-    }
-
-    .table {
-        @apply w-full caption-bottom text-sm;
-    }
-
-    .table-header {
-        @apply border-b border-gray-200;
-    }
-
-    .table-row {
-        @apply border-b border-gray-200 transition-colors hover:bg-gray-50;
-    }
-
-    .table-head {
-        @apply h-12 px-4 text-left align-middle font-medium text-gray-500;
-    }
-
-    .table-cell {
-        @apply p-4 align-middle;
-    }
-}
-/* Mobil
-e-first responsive enhancements */
-@layer base {
-    /* Mobile-first responsive text sizing */
+  @media (min-width: 640px) {
     html {
-        font-size: 14px;
+      font-size: 16px;
     }
-    
-    @media (min-width: 640px) {
-        html {
-            font-size: 16px;
-        }
-    }
+  }
 }
 
+/* ==========================
+   Components
+========================== */
 @layer components {
-    /* Enhanced mobile-friendly buttons */
-    .btn {
-        @apply min-h-[40px] sm:min-h-[44px];
-    }
-    
-    .btn-primary {
-        @apply px-4 py-2 sm:px-6 sm:py-3;
-    }
-    
-    .btn-secondary {
-        @apply px-4 py-2 sm:px-6 sm:py-3;
-    }
-    
-    .btn-danger {
-        @apply px-4 py-2 sm:px-6 sm:py-3;
-    }
-    
-    .btn-success {
-        @apply px-4 py-2 sm:px-6 sm:py-3;
-    }
-    
-    /* Enhanced mobile-friendly inputs */
-    .input {
-        @apply min-h-[40px] sm:min-h-[44px] text-sm sm:text-base;
-    }
-    
-    /* Enhanced mobile-friendly cards */
-    .card-header {
-        @apply p-4 sm:p-6;
-    }
-    
-    .card-content {
-        @apply p-4 sm:p-6 pt-0;
-    }
-    
-    /* Enhanced mobile-friendly tables */
-    .table-head {
-        @apply px-2 sm:px-4 text-xs sm:text-sm;
-    }
-    
-    .table-cell {
-        @apply p-2 sm:p-4 text-xs sm:text-sm;
-    }
-    
-    /* Mobile-specific utilities */
-    .mobile-scroll {
-        @apply overflow-x-auto;
-    }
-    
-    .mobile-card {
-        @apply block sm:hidden;
-    }
-    
-    .desktop-table {
-        @apply hidden sm:block;
-    }
-    
-    /* Touch-friendly interactive elements */
-    .touch-target {
-        @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
-    }
-    
-    /* Responsive spacing */
-    .responsive-padding {
-        @apply p-4 sm:p-6 lg:p-8;
-    }
-    
-    .responsive-margin {
-        @apply m-4 sm:m-6 lg:m-8;
-    }
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2
+      disabled:opacity-50 disabled:pointer-events-none min-h-[40px] sm:min-h-[44px];
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-600 text-white hover:bg-primary-700 px-4 py-2 sm:px-6 sm:py-3;
+  }
+
+  .btn-secondary {
+    @apply btn bg-secondary-200 text-secondary-900 hover:bg-secondary-300 px-4 py-2 sm:px-6 sm:py-3;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700 px-4 py-2 sm:px-6 sm:py-3;
+  }
+
+  .btn-success {
+    @apply btn bg-green-600 text-white hover:bg-green-700 px-4 py-2 sm:px-6 sm:py-3;
+  }
+
+  .input {
+    @apply flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm
+      placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2
+      focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50
+      min-h-[40px] sm:min-h-[44px] text-sm sm:text-base;
+  }
+
+  /* Ensure form elements in modals are clickable */
+  .modal-form select,
+  .modal-form input {
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 10;
+  }
+
+  .card {
+    @apply rounded-lg border border-gray-200 bg-white shadow-sm;
+  }
+
+  .card-header {
+    @apply flex flex-col space-y-1.5 p-4 sm:p-6;
+  }
+
+  .card-content {
+    @apply p-4 sm:p-6 pt-0;
+  }
+
+  .table {
+    @apply w-full caption-bottom text-sm;
+  }
+
+  .table-header {
+    @apply border-b border-gray-200;
+  }
+
+  .table-row {
+    @apply border-b border-gray-200 transition-colors hover:bg-gray-50;
+  }
+
+  .table-head {
+    @apply h-12 px-2 sm:px-4 text-left align-middle font-medium text-gray-500 text-xs sm:text-sm;
+  }
+
+  .table-cell {
+    @apply p-2 sm:p-4 align-middle text-xs sm:text-sm;
+  }
+
+  /* Line clamp utilities */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  /* Mobile-specific utilities */
+  .mobile-scroll {
+    @apply overflow-x-auto;
+  }
+
+  .mobile-card {
+    @apply block sm:hidden;
+  }
+
+  .desktop-table {
+    @apply hidden sm:block;
+  }
+
+  /* Touch-friendly interactive elements */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+  }
+
+  /* Responsive spacing */
+  .responsive-padding {
+    @apply p-4 sm:p-6 lg:p-8;
+  }
+
+  .responsive-margin {
+    @apply m-4 sm:m-6 lg:m-8;
+  }
 }
 
-/* Hide scrollbar for mobile scroll areas */
+/* ==========================
+   Utilities
+========================== */
 @layer utilities {
-    .scrollbar-hide {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-    }
-    
-    .scrollbar-hide::-webkit-scrollbar {
-        display: none;
-    }
-    
-    /* Safe area for mobile devices */
-    .safe-area-top {
-        padding-top: env(safe-area-inset-top);
-    }
-    
-    .safe-area-bottom {
-        padding-bottom: env(safe-area-inset-bottom);
-    }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+* {
+  font-family: "Kantumruy Pro", sans-serif;
+  font-optical-sizing: auto;
 }

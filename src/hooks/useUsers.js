@@ -1,58 +1,116 @@
-import { useQuery, useMutation, useQueryClient } from 'react-query'
+import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 import { userService } from '../services/userService'
 
 export const useUsers = () => {
-  return useQuery('users', userService.getAll)
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const refetch = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const result = await userService.getAll()
+      setData(result)
+      setError(null)
+    } catch (err) {
+      setError(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    refetch()
+  }, [refetch])
+
+  return { data, isLoading, error, refetch }
 }
 
 export const useUser = (id) => {
-  return useQuery(['user', id], () => userService.getById(id), {
-    enabled: !!id,
-  })
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const refetch = useCallback(async () => {
+    if (!id) return
+    try {
+      setIsLoading(true)
+      const result = await userService.getById(id)
+      setData(result)
+      setError(null)
+    } catch (err) {
+      setError(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [id])
+
+  useEffect(() => {
+    if (id) {
+      refetch()
+    }
+  }, [id, refetch])
+
+  return { data, isLoading, error, refetch }
 }
 
 export const useCreateUser = () => {
-  const queryClient = useQueryClient()
-  
-  return useMutation(userService.create, {
-    onSuccess: () => {
-      queryClient.invalidateQueries('users')
+  const [isLoading, setIsLoading] = useState(false)
+
+  const mutate = async (userData) => {
+    try {
+      setIsLoading(true)
+      const result = await userService.create(userData)
       toast.success('User created successfully')
-    },
-    onError: (error) => {
+      return result
+    } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create user')
-    },
-  })
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return { mutate, mutateAsync: mutate, isLoading }
 }
 
 export const useUpdateUser = () => {
-  const queryClient = useQueryClient()
-  
-  return useMutation(
-    ({ id, data }) => userService.update(id, data),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('users')
-        toast.success('User updated successfully')
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to update user')
-      },
+  const [isLoading, setIsLoading] = useState(false)
+
+  const mutate = async ({ id, data }) => {
+    try {
+      setIsLoading(true)
+      const result = await userService.update(id, data)
+      toast.success('User updated successfully')
+      return result
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update user')
+      throw error
+    } finally {
+      setIsLoading(false)
     }
-  )
+  }
+
+  return { mutate, mutateAsync: mutate, isLoading }
 }
 
 export const useDeleteUser = () => {
-  const queryClient = useQueryClient()
-  
-  return useMutation(userService.delete, {
-    onSuccess: () => {
-      queryClient.invalidateQueries('users')
+  const [isLoading, setIsLoading] = useState(false)
+
+  const mutate = async (id) => {
+    try {
+      setIsLoading(true)
+      const result = await userService.delete(id)
       toast.success('User deleted successfully')
-    },
-    onError: (error) => {
+      return result
+    } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to delete user')
-    },
-  })
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return { mutate, mutateAsync: mutate, isLoading }
 }

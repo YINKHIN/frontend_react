@@ -6,7 +6,27 @@ import LoadingSpinner from './LoadingSpinner'
 import { getImageUrl } from '../utils/helper'
 import { config } from '../utils/config'
 
-const StaffModal = ({ staff, mode, onClose }) => {
+// Convert any supported date string to yyyy-MM-dd for <input type="date">
+const toDateInputValue = (value) => {
+  if (!value) return ''
+  // Already yyyy-MM-dd
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  // dd/MM/yyyy -> yyyy-MM-dd
+  const dmyMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (dmyMatch) {
+    const [, dd, mm, yyyy] = dmyMatch
+    return `${yyyy}-${mm}-${dd}`
+  }
+  // Try Date parsing (ISO or other valid formats)
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+const StaffModal = ({ staff, mode, onClose, onSuccess }) => {
   const isReadOnly = mode === 'view'
   const isEdit = mode === 'edit'
   
@@ -22,7 +42,7 @@ const StaffModal = ({ staff, mode, onClose }) => {
     defaultValues: {
       full_name: '',
       gen: 'M',
-      dob: '',
+      dob: toDateInputValue(''),
       position: '',
       salary: '',
       stopwork: false,
@@ -37,7 +57,7 @@ const StaffModal = ({ staff, mode, onClose }) => {
       reset({
         full_name: staff.full_name || '',
         gen: staff.gen || 'M',
-        dob: staff.dob || '',
+        dob: toDateInputValue(staff.dob || ''),
         position: staff.position || '',
         salary: staff.salary || '',
         stopwork: staff.stopwork || false,
@@ -109,10 +129,16 @@ const StaffModal = ({ staff, mode, onClose }) => {
         console.log('Submitting JSON data:', submitData)
       }
 
+      let result
       if (isEdit) {
-        await updateStaff.mutateAsync({ id: staff.id, data: submitData })
+        result = await updateStaff.mutateAsync({ id: staff.id, data: submitData })
       } else {
-        await createStaff.mutateAsync(submitData)
+        result = await createStaff.mutateAsync(submitData)
+      }
+      const changedStaff = (result && (result.data?.data || result.data || result)) || null
+      if (typeof onSuccess === 'function') {
+        const type = isEdit ? 'update' : 'create'
+        await onSuccess({ type, staff: changedStaff })
       }
       onClose()
     } catch (error) {
@@ -247,7 +273,7 @@ const StaffModal = ({ staff, mode, onClose }) => {
                 disabled={isReadOnly}
               />
               <label className="ml-2 block text-sm text-gray-700">
-                Stop Work
+                Stop/Work
               </label>
             </div>
 

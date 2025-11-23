@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, Edit, Trash2, Truck } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useSuppliers, useDeleteSupplier } from '../hooks/useSuppliers'
 import LoadingSpinner from '../components/LoadingSpinner'
 import SupplierModal from '../components/SupplierModal'
-import ApiDebugger from '../components/ApiDebugger'
+// import ApiDebugger from '../components/ApiDebugger'
 import { formatDate } from '../utils/helper'
 
 const SuppliersPage = () => {
@@ -13,12 +13,20 @@ const SuppliersPage = () => {
   const [selectedSupplier, setSelectedSupplier] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState('create')
+  const [list, setList] = useState([])
 
-  const { data: suppliersResponse, isLoading, error } = useSuppliers()
+  const { data: suppliersResponse, isLoading, error, refetch } = useSuppliers()
   const deleteSupplier = useDeleteSupplier()
 
   // Handle different API response formats
   const suppliers = suppliersResponse?.data?.data || suppliersResponse?.data || suppliersResponse || []
+
+  // Update local list only when suppliers data changes
+  useEffect(() => {
+    if (Array.isArray(suppliers) && suppliers.length > 0) {
+      setList(suppliers)
+    }
+  }, [suppliersResponse])
 
   const handleCreate = () => {
     setSelectedSupplier(null)
@@ -35,23 +43,27 @@ const SuppliersPage = () => {
   const handleDelete = async (supplier) => {
     if (window.confirm(`Are you sure you want to delete "${supplier.supplier}"?`)) {
       try {
+        // Optimistic remove
+        setList(prev => prev.filter(s => s.id !== supplier.id))
         await deleteSupplier.mutateAsync(supplier.id)
+        refetch()
       } catch (error) {
         console.error('Delete failed:', error)
+        refetch()
       }
     }
   }
 
-  if (isLoading) return <LoadingSpinner className="h-64" />
+  if (isLoading && !suppliersResponse) return <LoadingSpinner className="h-64" />
   if (error) return <div className="text-red-600">Error loading suppliers</div>
 
   const canCreate = hasPermission(['create'])
   const canUpdate = hasPermission(['update'])
   const canDelete = hasPermission(['delete'])
 
-  const filteredSuppliers = Array.isArray(suppliers) ? suppliers.filter(supplier =>
-    supplier.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    supplier.sup_con.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredSuppliers = Array.isArray(list) ? list.filter(supplier =>
+    (supplier.supplier || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (supplier.contact_person || '').toLowerCase().includes(searchTerm.toLowerCase())
   ) : []
 
   return (
@@ -70,7 +82,7 @@ const SuppliersPage = () => {
       </div>
 
       {/* Temporary API Debugger */}
-      <ApiDebugger />
+      {/* <ApiDebugger /> */}
 
       <div className="bg-white rounded-lg shadow p-6">
         <div className="relative">
@@ -158,6 +170,16 @@ const SuppliersPage = () => {
           supplier={selectedSupplier}
           mode={modalMode}
           onClose={() => setModalOpen(false)}
+          onSuccess={({ type, supplier: changedSupplier }) => {
+            if (changedSupplier) {
+              setList(prev => {
+                if (type === 'create') return [changedSupplier, ...prev]
+                if (type === 'update') return prev.map(s => s.id === changedSupplier.id ? { ...s, ...changedSupplier } : s)
+                return prev
+              })
+            }
+            refetch()
+          }}
         />
       )}
     </div>

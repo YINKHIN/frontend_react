@@ -23,8 +23,5 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "env": {
-    "VITE_API_BASE_URL": "https://glistening-insight.up.railway.app/api/"
-  }
+  ]
 }

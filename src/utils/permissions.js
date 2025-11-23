@@ -62,7 +62,7 @@ export const UserOnly = ({ children, fallback = null }) => {
 // Helper function to check permissions
 export const checkPermission = (action = 'read') => {
   const userType = localStorage.getItem('type');
-  
+
   if (action === 'read') {
     return true; // All users can read
   }

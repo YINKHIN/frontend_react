@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, Edit, Trash2, Eye, Package, Filter, List, Grid, Power, PowerOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { useProducts, useDeleteProduct, useDeactivateProduct, useActivateProduct } from '../hooks/useProducts'
+import { useProducts, useDeleteProduct, useUpdateProduct, useActivateProduct, useDeactivateProduct } from '../hooks/useProducts'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ProductModal from '../components/ProductModal'
 import PhotoGallery from '../components/PhotoGallery'
 import { formatCurrency, formatDate, getStatusColor, getImageUrl } from '../utils/helper'
 import { config } from '../utils/config'
+import { toast } from 'react-hot-toast'
+
 
 const ProductsPage = () => {
   const { hasPermission } = useAuth()
@@ -15,15 +17,46 @@ const ProductsPage = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState('create') // create, edit, view
   const [viewMode, setViewMode] = useState('table') // table, gallery
+  
 
-  const { data: productsResponse, isLoading, error } = useProducts({ search: searchTerm })
-  const deleteProduct = useDeleteProduct()
-  const deactivateProduct = useDeactivateProduct()
-  const activateProduct = useActivateProduct()
+  // 🚀 Use hooks with refetch callback
+  const { data: productsResponse, isLoading, error, refetch } = useProducts()
+  const deleteProductMutation = useDeleteProduct(refetch)
+  const updateProductMutation = useUpdateProduct(refetch)
+  const activateProductMutation = useActivateProduct(refetch)
+  const deactivateProductMutation = useDeactivateProduct(refetch)
 
-  // Handle different API response formats
-  const products = productsResponse?.data?.data || productsResponse?.data || productsResponse || []
-  const isArray = Array.isArray(products)
+  // Extract products from response without creating a new [] every render
+  const products = Array.isArray(productsResponse?.data?.data)
+    ? productsResponse.data.data
+    : Array.isArray(productsResponse?.data)
+    ? productsResponse.data
+    : Array.isArray(productsResponse)
+    ? productsResponse
+    : null
+
+  // Local list for optimistic UI without page-level spinner
+  const [list, setList] = useState([])
+  useEffect(() => {
+    if (Array.isArray(products)) {
+    // Sort products by created_at in descending order (newest first)
+    const sortedProducts = [...products].sort((a, b) => 
+      new Date(b.created_at) - new Date(a.created_at)
+    )
+    setList(sortedProducts)
+  }
+}, [products])
+
+  const isArray = Array.isArray(list)
+
+  // Filter products based on search term
+  const filteredProducts = Array.isArray(list) 
+    ? list.filter(product =>
+        (product.pro_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.barcode || '').toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : []
 
   const handleCreate = () => {
     setSelectedProduct(null)
@@ -46,7 +79,11 @@ const ProductsPage = () => {
   const handleDelete = async (product) => {
     if (window.confirm(`Are you sure you want to delete "${product.pro_name}"?`)) {
       try {
-        await deleteProduct.mutateAsync(product.id)
+        // Optimistically remove
+        setList(prev => prev.filter(p => p.id !== product.id))
+        await deleteProductMutation.mutate(product.id)
+        // Background sync
+        refetch()
       } catch (error) {
         console.error('Delete failed:', error)
 
@@ -58,9 +95,19 @@ const ProductsPage = () => {
 
           if (shouldDeactivate) {
             try {
-              await deactivateProduct.mutateAsync(product.id)
+              // 🚀 Use auto-refresh mutation for update
+              // Optimistically update status
+              setList(prev => prev.map(p => p.id === product.id ? { ...p, status: 'inactive' } : p))
+              await updateProductMutation.mutate({ 
+                id: product.id, 
+                data: { ...product, status: 'inactive' } 
+              })
+              refetch()
             } catch (deactivateError) {
               console.error('Deactivate failed:', deactivateError)
+              toast.error('Failed to deactivate product')
+              // rollback via sync
+              refetch()
             }
           }
         }
@@ -71,31 +118,44 @@ const ProductsPage = () => {
   const handleToggleStatus = async (product) => {
     const isActive = product.status === 'active'
     const action = isActive ? 'deactivate' : 'activate'
-    const mutation = isActive ? deactivateProduct : activateProduct
 
     if (window.confirm(`Are you sure you want to ${action} "${product.pro_name}"?`)) {
       try {
-        await mutation.mutateAsync(product.id)
+        // 🚀 Use dedicated activate/deactivate hooks
+        if (isActive) {
+          await deactivateProductMutation.mutate(product.id)
+        } else {
+          await activateProductMutation.mutate(product.id)
+        }
+        // Auto refresh will happen automatically
       } catch (error) {
         console.error(`${action} failed:`, error)
+        // Error handling is done in the hooks
       }
     }
   }
 
-  if (isLoading) return <LoadingSpinner className="h-64" />
+  // Debug logging removed
+
+  if (isLoading && !productsResponse) {
+    return <LoadingSpinner className="h-64" />
+  }
+  
   if (error) {
-    console.error('Products error:', error)
-    return <div className="text-red-600 p-4">Error loading products: {error.message}</div>
+    return (
+      <div className="text-red-600 p-4 bg-red-50 rounded">
+        Error loading products: {error.message}
+        <button 
+          onClick={refetch} 
+          className="ml-4 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+        >
+          Retry
+        </button>
+      </div>
+    )
   }
 
-  // Debug logging for products data
-  console.log('Products data:', products)
-  if (products && products.length > 0) {
-    console.log('First product:', products[0])
-    console.log('First product image:', products[0].image)
-    console.log('First product image_url:', products[0].image_url)
-    console.log('Generated image URL:', getImageUrl(products[0].image_url || products[0].image, config.base_image_url))
-  }
+  // Debug logging removed
 
   const canCreate = hasPermission(['create', 'create_product'])
   const canUpdate = hasPermission(['update', 'update_product'])
@@ -107,7 +167,12 @@ const ProductsPage = () => {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Products</h1>
-          <p className="text-sm sm:text-base text-gray-600">Manage your product inventory</p>
+          <p className="text-sm sm:text-base text-gray-600">
+            {searchTerm 
+              ? `${filteredProducts.length} of ${list.length} products`
+              : `${filteredProducts.length} total products`
+            }
+          </p>
         </div>
         {canCreate && (
           <button onClick={handleCreate} className="btn-primary w-full sm:w-auto">
@@ -165,7 +230,7 @@ const ProductsPage = () => {
       {/* Mobile Cards View */}
       {viewMode === 'table' && (
         <div className="block sm:hidden space-y-4">
-          {isArray && products?.map((product) => (
+          {isArray && filteredProducts?.map((product) => (
             <div key={product.id} className="bg-white rounded-lg shadow p-4">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center flex-1 min-w-0">
@@ -277,21 +342,22 @@ const ProductsPage = () => {
       {viewMode === 'table' && (
         <div className="hidden sm:block bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="table">
-              <thead className="table-header">
-                <tr>
-                  <th className="table-head">Image</th>
-                  <th className="table-head">Product</th>
-                  <th className="table-head">Category</th>
-                  <th className="table-head">Price</th>
-                  <th className="table-head">Stock</th>
-                  <th className="table-head">Status</th>
-                  <th className="table-head">Created</th>
-                  <th className="table-head">Actions</th>
+            <table className="table ">
+              <thead className="table-header bg-blue-400 text-white">
+                <tr className='text-white'>
+                  <th className="table-head text-white ">Image</th>
+                  <th className="table-head text-white">Name</th>
+                  <th className="table-head text-white">Description</th>
+                  <th className="table-head text-white">Category</th>
+                  <th className="table-head text-white">Price</th>
+                  <th className="table-head text-white">Stock</th>
+                  <th className="table-head text-white">Status</th>
+                  <th className="table-head text-white">Created</th>
+                  <th className="table-head text-white">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {isArray && products?.map((product) => (
+                {isArray && filteredProducts?.map((product) => (
                   <tr key={product.id} className="table-row">
                     <td className="table-cell">
                       <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border border-gray-200">
@@ -321,8 +387,11 @@ const ProductsPage = () => {
                     <td className="table-cell">
                       <div>
                         <div className="font-medium text-gray-900">{product.pro_name}</div>
-                        <div className="text-sm text-gray-500 line-clamp-2">{product.pro_description}</div>
+                        {/* <div className="text-sm text-gray-500 line-clamp-2">{product.pro_description}</div> */}
                       </div>
+                    </td>
+                    <td>
+                      <div className="text-sm text-gray-500 line-clamp-2 w-32 ">{product.pro_description}</div>
                     </td>
                     <td className="table-cell">
                       <span className="text-sm text-gray-900">
@@ -404,7 +473,7 @@ const ProductsPage = () => {
             </table>
           </div>
 
-          {isArray && products?.length === 0 && (
+          {isArray && list?.length === 0 && (
             <div className="text-center py-12">
               <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
@@ -419,7 +488,7 @@ const ProductsPage = () => {
       {/* Gallery View */}
       {viewMode === 'gallery' && (
         <PhotoGallery
-          items={products}
+          items={filteredProducts}
           title="Products"
           type="product"
         />
@@ -431,6 +500,18 @@ const ProductsPage = () => {
           product={selectedProduct}
           mode={modalMode}
           onClose={() => setModalOpen(false)}
+          onSuccess={({ type, product: changedProduct }) => {
+            setModalOpen(false)
+            if (changedProduct) {
+              setList(prev => {
+                if (type === 'create') return [changedProduct, ...prev]
+                if (type === 'update') return prev.map(p => p.id === changedProduct.id ? { ...p, ...changedProduct } : p)
+                return prev
+              })
+            }
+            // Background sync to reconcile
+            refetch()
+          }}
         />
       )}
     </div>

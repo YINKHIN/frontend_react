@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, Edit, Trash2, User, Shield, Crown, Users, ShoppingCart, Package, Eye } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useUsers, useDeleteUser } from '../hooks/useUsers'
@@ -13,9 +13,9 @@ const getRoleColors = (userType) => {
     admin: 'bg-gradient-to-r from-red-500 to-red-600 text-white border-red-600 shadow-lg font-bold',
     manager: 'bg-gradient-to-r from-purple-500 to-purple-600 text-white border-purple-600 shadow-lg font-bold',
     sales: 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-600 shadow-lg font-bold',
-    staff_sale: 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-600 shadow-lg font-bold', // Fallback
+    staff_sale: 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-600 shadow-lg font-bold',
     inventory: 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-600 shadow-lg font-bold',
-    inventory_staff: 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-600 shadow-lg font-bold', // Fallback
+    inventory_staff: 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-600 shadow-lg font-bold',
     user: 'bg-gradient-to-r from-gray-500 to-gray-600 text-white border-gray-600 shadow-lg font-semibold'
   }
   return roleColors[userType] || 'bg-gradient-to-r from-gray-500 to-gray-600 text-white border-gray-600 shadow-lg font-semibold'
@@ -26,9 +26,9 @@ const getRoleIcon = (userType) => {
     admin: Crown,
     manager: Shield,
     sales: ShoppingCart,
-    staff_sale: ShoppingCart, // Fallback
+    staff_sale: ShoppingCart,
     inventory: Package,
-    inventory_staff: Package, // Fallback
+    inventory_staff: Package,
     user: User
   }
   const IconComponent = roleIcons[userType] || User
@@ -41,12 +41,20 @@ const UsersPage = () => {
   const [selectedUser, setSelectedUser] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState('create')
+  const [list, setList] = useState([])
 
-  const { data: usersResponse, isLoading, error } = useUsers()
+  const { data: usersResponse, isLoading, error, refetch } = useUsers()
   const deleteUser = useDeleteUser()
 
   // Handle different API response formats
   const users = usersResponse?.data?.data || usersResponse?.data || usersResponse || []
+
+  // Update local list only when usersResponse changes
+  useEffect(() => {
+    if (Array.isArray(users) && users.length > 0) {
+      setList(users)
+    }
+  }, [usersResponse])
 
   // Only admins can access this page
   if (!hasPermission('manage_users')) {
@@ -81,9 +89,15 @@ const UsersPage = () => {
     setSelectedUser(user)
     if (window.confirm(`Are you sure you want to delete "${user.name}"?`)) {
       try {
+        // Optimistically remove from list
+        setList(prev => prev.filter(u => u.id !== user.id))
         await deleteUser.mutateAsync(user.id)
+        // Background refresh to sync
+        refetch()
       } catch (error) {
         console.error('Delete failed:', error)
+        // Re-sync in case of server rejection
+        refetch()
       } finally {
         setSelectedUser(null)
       }
@@ -92,12 +106,13 @@ const UsersPage = () => {
     }
   }
 
-  if (isLoading) return <LoadingSpinner className="h-64" />
+  // Only block the UI on the very first load
+  if (isLoading && !usersResponse) return <LoadingSpinner className="h-64" />
   if (error) return <div className="text-red-600">Error loading users</div>
 
-  const filteredUsers = Array.isArray(users) ? users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = Array.isArray(list) ? list.filter(user =>
+    (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   ) : []
 
   return (
@@ -263,6 +278,23 @@ const UsersPage = () => {
           user={selectedUser}
           mode={modalMode}
           onClose={() => setModalOpen(false)}
+          onSuccess={({ type, user: changedUser }) => {
+            if (!changedUser) {
+              refetch()
+              return
+            }
+            setList(prev => {
+              if (type === 'create') {
+                return [changedUser, ...prev]
+              }
+              if (type === 'update') {
+                return prev.map(u => (u.id === changedUser.id ? { ...u, ...changedUser } : u))
+              }
+              return prev
+            })
+            // Background sync to ensure consistency without showing spinner
+            refetch()
+          }}
         />
       )}
     </div>

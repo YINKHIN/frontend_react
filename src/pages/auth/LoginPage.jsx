@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Navigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { Eye, EyeOff, Package, Mail, Lock, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Package, Mail, Lock, AlertCircle, Info } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import BackendStatus from "../../components/BackendStatus";
 import Logo from "../../img/adminType.png";
 import Bg from "../../img/Data-Savvy-6.jpg";
+
 const LoginPage = () => {
   const { login, isAuthenticated, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
@@ -65,27 +66,7 @@ const LoginPage = () => {
             <h1 className="text-4xl font-bold mb-4">
               Inventory Management System
             </h1>
-            {/* <p className="text-xl text-primary-100 leading-relaxed">
-              Streamline your inventory operations with our comprehensive
-              management solution. Track products, manage orders, and optimize
-              your business workflow.
-            </p> */}
           </div>
-
-          {/* <div className="space-y-4">
-            <div className="flex items-center text-primary-100">
-              <div className="w-2 h-2 bg-primary-300 rounded-full mr-3"></div>
-              <span>Real-time inventory tracking</span>
-            </div>
-            <div className="flex items-center text-primary-100">
-              <div className="w-2 h-2 bg-primary-300 rounded-full mr-3"></div>
-              <span>Role-based access control</span>
-            </div>
-            <div className="flex items-center text-primary-100">
-              <div className="w-2 h-2 bg-primary-300 rounded-full mr-3"></div>
-              <span>Comprehensive reporting</span>
-            </div>
-          </div> */}
         </div>
       </div>
 
@@ -94,8 +75,8 @@ const LoginPage = () => {
         <div className="max-w-md w-full space-y-6 sm:space-y-8">
           {/* Mobile Logo */}
           <div className="lg:hidden text-center">
-            <div className="mx-auto h-16 w-16 bg-primary-600 rounded-2xl flex items-center justify-center mb-4">
-              <Package className="h-10 w-10 text-white" />
+            <div className="mx-auto h-16 w-16  rounded-full flex items-center justify-center mb-4">
+              <img src={Logo} alt="logo" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
             <p className="text-gray-600">Sign in to your account</p>
@@ -215,7 +196,7 @@ const LoginPage = () => {
                   href="#"
                   className="font-medium text-primary-600 hover:text-primary-500"
                 >
-                  Forgot your password?
+                  {/* Forgot your password? */}
                 </a>
               </div>
             </div>
@@ -256,30 +237,28 @@ const LoginPage = () => {
           </div>
 
           {/* Demo Accounts */}
-          {/* <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                        <h3 className="text-sm font-medium text-gray-700 mb-3">Demo Accounts:</h3>
-                        <div className="space-y-2 text-xs text-gray-600">
-                            <div className="flex justify-between">
-                                <span>Admin:</span>
-                                <span>admin@example.com / password</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Manager:</span>
-                                <span>manager@example.com / password</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Sales Staff:</span>
-                                <span>sales@example.com / password</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Inventory Staff:</span>
-                                <span>inventory@example.com / password</span>
-                            </div>
-                        </div>
-                        <div className="mt-3 text-xs text-gray-500">
-                            <strong>Note:</strong> Admin account works without backend for demo purposes.
-                        </div>
-                    </div> */}
+          {/* <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-start">
+              <Info className="w-5 h-5 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium text-blue-800 mb-2">Login Credentials:</h3>
+                <div className="space-y-1 text-xs text-blue-700">
+                  <div className="flex justify-between">
+                    <span className="font-medium">Admin:</span>
+                    <span>admin@inventory.com / password</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">User:</span>
+                    <span>user@inventory.com / password</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Demo:</span>
+                    <span>admin@example.com / password</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div> */}
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { X } from 'lucide-react'
 import { useCreateBrand, useUpdateBrand } from '../hooks/useBrands'
 import LoadingSpinner from './LoadingSpinner'
 
-const BrandModal = ({ brand, mode, onClose }) => {
+const BrandModal = ({ brand, mode, onClose, onSuccess }) => {
   const isEdit = mode === 'edit'
   
   const createBrand = useCreateBrand()
@@ -33,10 +33,16 @@ const BrandModal = ({ brand, mode, onClose }) => {
 
   const onSubmit = async (data) => {
     try {
+      let result
       if (isEdit) {
-        await updateBrand.mutateAsync({ id: brand.id, data })
+        result = await updateBrand.mutateAsync({ id: brand.id, data })
       } else {
-        await createBrand.mutateAsync(data)
+        result = await createBrand.mutateAsync(data)
+      }
+      if (typeof onSuccess === 'function') {
+        const changedBrand = (result && (result.data?.data || result.data || result)) || null
+        const type = isEdit ? 'update' : 'create'
+        await onSuccess({ type, brand: changedBrand })
       }
       onClose()
     } catch (error) {
@@ -92,16 +98,16 @@ const BrandModal = ({ brand, mode, onClose }) => {
             )}
           </div>
 
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
+              Code
             </label>
             <textarea
-              {...register('description')}
+              {...register('code')}
               rows={3}
               className="input"
             />
-          </div>
+          </div> */}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

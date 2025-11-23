@@ -1,102 +1,68 @@
-import { useQuery, useMutation, useQueryClient } from 'react-query'
+import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 import { request } from '../utils/request'
 
 export const useNotifications = () => {
-  return useQuery('notifications', () => request.get('/notifications'))
-}
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-export const useNotification = (id) => {
-  return useQuery(['notification', id], () => request.get(`/notifications/${id}`), {
-    enabled: !!id,
-  })
-}
-
-export const useCreateNotification = () => {
-  const queryClient = useQueryClient()
-  
-  return useMutation(
-    (data) => request.post('/notifications', data),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('notifications')
-        toast.success('Notification created successfully')
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to create notification')
-      },
+  const refetch = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const result = await request.get('/notifications')
+      setData(result.data)
+      setError(null)
+    } catch (err) {
+      setError(err)
+    } finally {
+      setIsLoading(false)
     }
-  )
-}
+  }, [])
 
-export const useUpdateNotification = () => {
-  const queryClient = useQueryClient()
-  
-  return useMutation(
-    ({ id, data }) => request.put(`/notifications/${id}`, data),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('notifications')
-        toast.success('Notification updated successfully')
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to update notification')
-      },
-    }
-  )
-}
+  useEffect(() => {
+    refetch()
+  }, [refetch])
 
-export const useDeleteNotification = () => {
-  const queryClient = useQueryClient()
-  
-  return useMutation(
-    (id) => request.delete(`/notifications/${id}`),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('notifications')
-        toast.success('Notification deleted successfully')
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to delete notification')
-      },
-    }
-  )
+  return { data, isLoading, error, refetch }
 }
 
 export const useMarkAsRead = () => {
-  const queryClient = useQueryClient()
-  
-  return useMutation(
-    (id) => request.post(`/notifications/${id}/mark-as-read`),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('notifications')
-        // Don't show toast for mark as read to avoid clutter
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to mark notification as read')
-      },
+  const [isLoading, setIsLoading] = useState(false)
+
+  const mutate = async (notificationId) => {
+    try {
+      setIsLoading(true)
+      const result = await request.patch(`/notifications/${notificationId}/read`)
+      toast.success('Notification marked as read')
+      return result.data
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to mark notification as read')
+      throw error
+    } finally {
+      setIsLoading(false)
     }
-  )
+  }
+
+  return { mutate, mutateAsync: mutate, isLoading }
 }
 
 export const useMarkAllAsRead = () => {
-  const queryClient = useQueryClient()
-  
-  return useMutation(
-    () => request.post('/notifications/mark-all-as-read'),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('notifications')
-        toast.success('All notifications marked as read')
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to mark all notifications as read')
-      },
-    }
-  )
-}
+  const [isLoading, setIsLoading] = useState(false)
 
-export const useUnreadCount = () => {
-  return useQuery('unreadCount', () => request.get('/notifications/unread-count'))
+  const mutate = async () => {
+    try {
+      setIsLoading(true)
+      const result = await request.patch('/notifications/mark-all-read')
+      toast.success('All notifications marked as read')
+      return result.data
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to mark all notifications as read')
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return { mutate, mutateAsync: mutate, isLoading }
 }

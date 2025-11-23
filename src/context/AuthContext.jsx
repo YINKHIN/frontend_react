@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect } from 'react'
+import { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 import api from '../utils/api'
 
@@ -73,14 +73,14 @@ export const AuthProvider = ({ children }) => {
     initializeAuth()
   }, [])
 
-  const login = async (credentials) => {
+  const login = useCallback(async (credentials) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true })
       
-      // Check if this is a demo login
-      const isDemoLogin = credentials.email === 'admin@example.com' && credentials.password === 'password'
+      // Always use real API login - demo mode disabled
+      // const isDemoLogin = credentials.email === 'admin@example.com' && credentials.password === 'password'
       
-      if (isDemoLogin) {
+      if (false) { // Demo mode disabled
         // Demo login without backend
         const demoUser = {
           id: 1,
@@ -119,10 +119,23 @@ export const AuthProvider = ({ children }) => {
           token = response.data.access_token || response.data.token
         }
         
+        // Map database user types to frontend user types
+        const mapUserType = (dbType) => {
+          const typeMapping = {
+            'sales': 'staff_sale',
+            'inventory': 'inventory_staff',
+            'admin': 'admin',
+            'manager': 'manager',
+            'user': 'user'
+          }
+          return typeMapping[dbType] || dbType
+        }
+        
         // Normalize user object - convert user_type to type for consistency
+        const rawType = user.type || user.user_type || 'user'
         const normalizedUser = {
           ...user,
-          type: user.type || user.user_type || 'user'
+          type: mapUserType(rawType)
         }
         
         localStorage.setItem('token', token)
@@ -158,31 +171,31 @@ export const AuthProvider = ({ children }) => {
       
       return { success: false, message }
     }
-  }
+  }, [dispatch])
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     dispatch({ type: 'LOGOUT' })
     toast.success('Logged out successfully')
-  }
+  }, [dispatch])
 
-  const updateUser = (userData) => {
+  const updateUser = useCallback((userData) => {
     const updatedUser = { ...state.user, ...userData }
     localStorage.setItem('user', JSON.stringify(updatedUser))
     dispatch({ type: 'UPDATE_USER', payload: userData })
-  }
+  }, [state.user, dispatch])
 
-  const hasPermission = (requiredPermissions) => {
+  const hasPermission = useCallback((requiredPermissions) => {
     if (!state.user) return false
     
     const userType = state.user.type
     const permissions = {
-      admin: ['create', 'read', 'update', 'delete', 'manage_users'],
-      manager: ['read'],
-      staff_sale: ['read', 'create_order', 'update_order', 'create_payment', 'update_payment'],
-      inventory_staff: ['read', 'create_product', 'update_product', 'create_import', 'update_import'],
-      user: ['read']
+      admin: ['view', 'create', 'read', 'update', 'delete', 'manage_users'],
+      manager: ['view', 'read', 'update'],
+      staff_sale: ['view', 'read', 'create_order', 'update_order', 'create_payment', 'update_payment'],
+      inventory_staff: ['view', 'read', 'create', 'update', 'delete', 'create_product', 'update_product', 'create_import', 'update_import'],
+      user: ['view', 'read']
     }
 
     const userPermissions = permissions[userType] || []
@@ -192,15 +205,15 @@ export const AuthProvider = ({ children }) => {
     }
     
     return userPermissions.includes(requiredPermissions)
-  }
+  }, [state.user])
 
-  const value = {
+  const value = useMemo(() => ({
     ...state,
     login,
     logout,
     updateUser,
     hasPermission,
-  }
+  }), [state, login, logout, updateUser, hasPermission])
 
   return (
     <AuthContext.Provider value={value}>

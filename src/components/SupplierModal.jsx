@@ -4,7 +4,7 @@ import { X } from 'lucide-react'
 import { useCreateSupplier, useUpdateSupplier } from '../hooks/useSuppliers'
 import LoadingSpinner from './LoadingSpinner'
 
-const SupplierModal = ({ supplier, mode, onClose }) => {
+const SupplierModal = ({ supplier, mode, onClose, onSuccess }) => {
   const isEdit = mode === 'edit'
   
   const createSupplier = useCreateSupplier()
@@ -27,10 +27,16 @@ const SupplierModal = ({ supplier, mode, onClose }) => {
 
   const onSubmit = async (data) => {
     try {
+      let result
       if (isEdit) {
-        await updateSupplier.mutateAsync({ id: supplier.id, data })
+        result = await updateSupplier.mutateAsync({ id: supplier.id, data })
       } else {
-        await createSupplier.mutateAsync(data)
+        result = await createSupplier.mutateAsync(data)
+      }
+      const changedSupplier = (result && (result.data?.data || result.data || result)) || null
+      if (typeof onSuccess === 'function') {
+        const type = isEdit ? 'update' : 'create'
+        onSuccess({ type, supplier: changedSupplier })
       }
       onClose()
     } catch (error) {

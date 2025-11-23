@@ -208,8 +208,8 @@ const ImportModal = ({ importItem, mode, onClose, onSaved }) => {
         const selectedProduct = products.find(p => p.id === parseInt(selectedProductId));
         if (selectedProduct) {
           // Auto-fill price from supplier price
-          if (selectedProduct.sup) {
-            productSetValue('price', selectedProduct.sup);
+          if (selectedProduct.upis) {
+            productSetValue('price', selectedProduct.upis);
           }
         }
       }

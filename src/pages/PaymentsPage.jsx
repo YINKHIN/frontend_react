@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { CreditCard, Plus, Search, Eye, Edit, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { usePayments, useDeletePayment, useCreatePayment, useUpdatePayment } from '../hooks/usePayments'
+import { toast } from 'react-hot-toast'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { formatCurrency, formatDate } from '../utils/helper'
 import PaymentModal from '../components/PaymentModal'
@@ -49,7 +50,7 @@ const PaymentsPage = () => {
         await deletePayment.mutateAsync(payment.id)
         await refetch()
       } catch (error) {
-        console.error('Delete failed:', error)
+        // console.error('Delete failed:', error)
       }
     }
   }
@@ -61,10 +62,15 @@ const PaymentsPage = () => {
       } else {
         await createPayment.mutateAsync(paymentData)
       }
+      // Give backend a brief moment to persist, then refetch
+      await new Promise(r => setTimeout(r, 250))
       await refetch()
-      setModalOpen(false)
     } catch (error) {
-      console.error('Save failed:', error)
+      // console.error('Save failed:', error)
+      // toast.error(error.response?.data?.message || 'Failed to save payment');
+    } finally {
+      // Always close the modal, even if there's an error
+      setModalOpen(false)
     }
   }
 

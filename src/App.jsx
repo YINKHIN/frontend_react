@@ -4,7 +4,6 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
-import AuthTest from './components/AuthTest'
 // import LaravelSetupGuide from './components/LaravelSetupGuide'
 import DashboardPage from './pages/DashboardPage'
 import ProductsPage from './pages/ProductsPage'
@@ -28,9 +27,7 @@ function App() {
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
-                <Route path="/test-auth" element={<AuthTest />} />
-                {/* <Route path="/setup-guide" element={<LaravelSetupGuide />} /> */
-}
+                {/* <Route path="/setup-guide" element={<LaravelSetupGuide />} /> */}
                 <Route path="/" element={
                     <ProtectedRoute>
                         <Layout />

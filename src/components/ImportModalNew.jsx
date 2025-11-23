@@ -7,22 +7,24 @@ import { useStaffs } from '../hooks/useStaffs';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { useProducts } from '../hooks/useProducts';
 
-const ImportModalNew = ({ importItem, mode, onClose }) => {
+const ImportModalNew = ({ importItem, mode, onClose, onSuccess }) => {
   const isReadOnly = mode === 'view';
   const isEdit = mode === 'edit';
-  
+
   const createImport = useCreateImport();
   const updateImport = useUpdateImport();
-  
+
   // Get data for dropdowns
   const { data: staffsResponse } = useStaffs();
   const { data: suppliersResponse } = useSuppliers();
   const { data: productsResponse } = useProducts();
-  
+
   const staffs = staffsResponse?.data?.data || staffsResponse?.data || staffsResponse || [];
   const suppliers = suppliersResponse?.data?.data || suppliersResponse?.data || suppliersResponse || [];
   const products = productsResponse?.data?.data || productsResponse?.data || productsResponse || [];
-  
+
+
+
   // State for managing import details
   const [importDetails, setImportDetails] = useState([]);
   const [showProductForm, setShowProductForm] = useState(false);
@@ -50,18 +52,18 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
   useEffect(() => {
     if (importItem) {
       // Format date to YYYY-MM-DD for HTML date input
-      const formattedDate = importItem.imp_date ? 
+      const formattedDate = importItem.imp_date ?
         new Date(importItem.imp_date).toISOString().split('T')[0] : '';
-      
+
       const resetData = {
         imp_date: formattedDate,
         staff_id: importItem.staff_id || '',
         sup_id: importItem.sup_id || '',
         supplier: importItem.supplier || '',
       };
-      
+
       reset(resetData);
-      
+
       // Load existing import details for edit/view mode
       if (importItem.importDetails && importItem.importDetails.length > 0) {
         setImportDetails(importItem.importDetails.map(detail => ({
@@ -71,7 +73,7 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
           price: parseFloat(detail.price),
           amount: parseFloat(detail.amount),
           batch_number: detail.batch_number,
-          expiration_date: detail.expiration_date ? 
+          expiration_date: detail.expiration_date ?
             new Date(detail.expiration_date).toISOString().split('T')[0] : ''
         })));
       } else if (importItem.import_details && importItem.import_details.length > 0) {
@@ -82,7 +84,7 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
           price: parseFloat(detail.price),
           amount: parseFloat(detail.amount),
           batch_number: detail.batch_number,
-          expiration_date: detail.expiration_date ? 
+          expiration_date: detail.expiration_date ?
             new Date(detail.expiration_date).toISOString().split('T')[0] : ''
         })));
       }
@@ -118,27 +120,53 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
   // Product management functions
   const addProduct = (productData) => {
     console.log('addProduct called with:', productData); // Debug log
+
+    // Validate product data
+    if (!productData.pro_code) {
+      toast.error('Please select a product');
+      return;
+    }
+
     const product = products.find(p => p.id === parseInt(productData.pro_code));
     if (!product) {
       toast.error('Product not found');
       return;
     }
 
-    const amount = parseFloat(productData.qty) * parseFloat(productData.price);
-    
+    // Check if product already exists in import details
+    const existingProduct = importDetails.find(detail => detail.pro_code === parseInt(productData.pro_code));
+    if (existingProduct) {
+      toast.error('Product already added to this import');
+      return;
+    }
+
+    const amount = parseFloat(productData.qty || 0) * parseFloat(productData.price || 0);
+
     const newDetail = {
       pro_code: parseInt(productData.pro_code),
       pro_name: product.pro_name,
-      qty: parseInt(productData.qty),
-      price: parseFloat(productData.price),
+      qty: parseInt(productData.qty || 0),
+      price: parseFloat(productData.price || 0),
       amount: amount,
       batch_number: productData.batch_number || '',
       expiration_date: productData.expiration_date || ''
     };
 
     console.log('Adding new detail:', newDetail); // Debug log
-    setImportDetails(prev => [...prev, newDetail]);
+    setImportDetails(prev => {
+      const updated = [...prev, newDetail];
+      console.log('Updated import details:', updated); // Debug log
+      return updated;
+    });
     setShowProductForm(false);
+
+    // Focus back to the Add Product button for quick consecutive entries
+    setTimeout(() => {
+      const addButton = document.querySelector('[data-testid="add-product-button"]');
+      if (addButton) {
+        addButton.focus();
+      }
+    }, 100);
   };
 
   const removeProduct = (index) => {
@@ -175,10 +203,16 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
         toast.success('Import updated successfully');
       } else {
         await createImport.mutateAsync(submitData);
-        toast.success('Import created successfully');
+        // No need to show toast here - it's already shown in the hook
+        // toast.success('Import created successfully');
       }
 
-      onClose();
+      // Call onSuccess callback if provided, otherwise just close
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        onClose();
+      }
     } catch (error) {
       console.error('Submit failed:', error);
       toast.error(error.response?.data?.message || 'Failed to save import');
@@ -187,30 +221,46 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
 
   // Product Form Component
   const ProductForm = ({ products, onAdd, onCancel }) => {
-    const { register: productRegister, handleSubmit: productHandleSubmit, formState: { errors: productErrors }, watch: productWatch, reset: productReset, setValue: productSetValue } = useForm();
-    
+    const {
+      register: productRegister,
+      formState: { errors: productErrors },
+      watch: productWatch,
+      reset: productReset,
+      setValue: productSetValue
+    } = useForm({
+      defaultValues: {
+        pro_code: '',
+        qty: '',
+        price: '',
+        batch_number: '',
+        expiration_date: ''
+      }
+    });
+
     const selectedProductId = productWatch('pro_code');
     const qty = productWatch('qty');
     const price = productWatch('price');
-    
+
     // Auto-populate product data when product is selected
     useEffect(() => {
       if (selectedProductId && products.length > 0) {
         const selectedProduct = products.find(p => p.id === parseInt(selectedProductId));
         if (selectedProduct) {
           // Auto-fill price from supplier price
-          if (selectedProduct.sup) {
-            productSetValue('price', selectedProduct.sup);
+          if (selectedProduct.upis) {
+            productSetValue('price', selectedProduct.upis);
           }
         }
       }
     }, [selectedProductId, products, productSetValue]);
-    
+
     // Calculate amount automatically
     const amount = qty && price ? (parseFloat(qty) * parseFloat(price)).toFixed(2) : '0.00';
 
     const onSubmit = (data) => {
-      // Validate required fields
+      console.log('ProductForm onSubmit called with:', data);
+
+      // Simple validation
       if (!data.pro_code) {
         toast.error('Please select a product');
         return;
@@ -223,41 +273,67 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
         toast.error('Please enter a valid price');
         return;
       }
-      
+
       onAdd(data);
       productReset();
     };
 
     return (
-      <div className="bg-gray-50 rounded-lg p-4 mb-4">
+      <div className="bg-gray-50 rounded-lg p-4 mb-4 modal-form">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-medium text-gray-900">Add Product</h3>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={(e) => {
+              console.log('Cancel clicked');
+              onCancel();
+            }}
             className="text-gray-400 hover:text-gray-600"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        
-        <div className="space-y-3">
+
+
+
+        <div className="space-y-3" style={{ position: 'relative', zIndex: 20 }}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Product *
               </label>
+
               <select
                 {...productRegister('pro_code', { required: 'Product is required' })}
                 className="w-full input"
+                style={{
+                  position: 'relative',
+                  zIndex: 1000,
+                  pointerEvents: 'auto',
+                  backgroundColor: 'white'
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                onChange={(e) => {
+                  const selectedProduct = products.find(p => p.id === parseInt(e.target.value));
+                  if (selectedProduct && selectedProduct.upis) {
+                    productSetValue('price', selectedProduct.upis);
+                  }
+                }}
               >
                 <option value="">Select Product</option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.pro_name}
-                  </option>
-                ))}
+                {Array.isArray(products) && products.length > 0 ? (
+                  products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.pro_name}
+                    </option>
+                  ))
+                ) : (
+                  <option disabled>Loading products...</option>
+                )}
               </select>
+
               {productErrors.pro_code && (
                 <p className="mt-1 text-xs text-red-600">{productErrors.pro_code.message}</p>
               )}
@@ -268,7 +344,7 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
                 Quantity *
               </label>
               <input
-                {...productRegister('qty', { 
+                {...productRegister('qty', {
                   required: 'Quantity is required',
                   min: { value: 1, message: 'Quantity must be at least 1' }
                 })}
@@ -287,7 +363,7 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
                 Unit Price *
               </label>
               <input
-                {...productRegister('price', { 
+                {...productRegister('price', {
                   required: 'Price is required',
                   min: { value: 0.01, message: 'Price must be greater than 0' }
                 })}
@@ -348,12 +424,11 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
             <button
               type="button"
               onClick={() => {
-                // Get all form values
                 const values = productWatch();
-                console.log('Product form values:', values); // Debug log
                 onSubmit(values);
               }}
               className="px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+              data-testid="add-product-button"
             >
               <Plus className="w-4 h-4 inline mr-1" />
               Add Product
@@ -369,8 +444,8 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">
-            {mode === 'create' ? 'Create New Import' : 
-             mode === 'edit' ? 'Edit Import' : 'Import Details'}
+            {mode === 'create' ? 'Create New Import' :
+              mode === 'edit' ? 'Edit Import' : 'Import Details'}
           </h2>
           <button
             onClick={onClose}
@@ -459,7 +534,7 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
                 Total Amount *
               </label>
               <input
-                {...register('total', { 
+                {...register('total', {
                   required: 'Total amount is required',
                   min: { value: 0, message: 'Total must be positive' }
                 })}
@@ -496,7 +571,7 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
 
               {/* Product Form */}
               {showProductForm && !isReadOnly && (
-                <ProductForm 
+                <ProductForm
                   products={products}
                   onAdd={addProduct}
                   onCancel={() => setShowProductForm(false)}
@@ -526,7 +601,7 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${parseFloat(detail.price || 0).toFixed(2)}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{detail.batch_number || '-'}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                            {detail.expiration_date ? 
+                            {detail.expiration_date ?
                               new Date(detail.expiration_date).toLocaleDateString() : '-'}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">${parseFloat(detail.amount || 0).toFixed(2)}</td>
@@ -546,7 +621,7 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
                       ))}
                     </tbody>
                   </table>
-                  
+
                   <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-700">Total:</span>
@@ -584,7 +659,7 @@ const ImportModalNew = ({ importItem, mode, onClose }) => {
                 </button>
               </div>
             )}
-            
+
             {isReadOnly && (
               <div className="flex justify-end pt-6 border-t border-gray-200">
                 <button

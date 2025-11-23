@@ -4,7 +4,7 @@ import { X } from 'lucide-react'
 import { useCreateCustomer, useUpdateCustomer } from '../hooks/useCustomers'
 import LoadingSpinner from './LoadingSpinner'
 
-const CustomerModal = ({ customer, mode, onClose }) => {
+const CustomerModal = ({ customer, mode, onClose, onSuccess }) => {
   const isReadOnly = mode === 'view'
   const isEdit = mode === 'edit'
   
@@ -35,10 +35,16 @@ const CustomerModal = ({ customer, mode, onClose }) => {
 
   const onSubmit = async (data) => {
     try {
+      let result
       if (isEdit) {
-        await updateCustomer.mutateAsync({ id: customer.id, data })
+        result = await updateCustomer.mutateAsync({ id: customer.id, data })
       } else {
-        await createCustomer.mutateAsync(data)
+        result = await createCustomer.mutateAsync(data)
+      }
+      const changedCustomer = (result && (result.data?.data || result.data || result)) || null
+      if (typeof onSuccess === 'function') {
+        const type = isEdit ? 'update' : 'create'
+        onSuccess({ type, customer: changedCustomer })
       }
       onClose()
     } catch (error) {
